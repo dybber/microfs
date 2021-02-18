@@ -43,6 +43,10 @@ For example, 'ufs ls' will list the files on a connected BBC micro:bit.
 
 COMMAND_LINE_FLAG = False  # Indicates running from the command line.
 SERIAL_BAUD_RATE = 115200
+ENTER_RAW_MODE = b"\x01"  # CTRL-A
+EXIT_RAW_MODE = b"\x02"  # CTRL-B
+KEYBOARD_INTERRUPT = b"\x03"  # CTRL-C
+SOFT_REBOOT = b"\x04"  # CTRL-D
 
 
 def find_microbit():
@@ -80,23 +84,31 @@ def raw_on(serial):
 
     raw_repl_msg = b"raw REPL; CTRL-B to exit\r\n>"
     # Send CTRL-B to end raw mode if required.
-    serial.write(b"\x02")
+    serial.write(EXIT_RAW_MODE)
     # Send CTRL-C three times between pauses to break out of loop.
     for i in range(3):
-        serial.write(b"\r\x03")
+        serial.write(b"\r")
+        serial.write(KEYBOARD_INTERRUPT)
         time.sleep(0.01)
     flush(serial)
     # Go into raw mode with CTRL-A.
-    serial.write(b"\r\x01")
+    serial.write(b"\r")
+    serial.write(ENTER_RAW_MODE)
     flush_to_msg(serial, raw_repl_msg)
     # Soft Reset with CTRL-D
-    serial.write(b"\x04")
+    serial.write(SOFT_REBOOT)
     flush_to_msg(serial, b"soft reboot\r\n")
+    # 2 x keyboard interrupt to stop any boot scripts
+    serial.write(KEYBOARD_INTERRUPT)
+    time.sleep(0.01)
+    serial.write(KEYBOARD_INTERRUPT)
+    time.sleep(0.01)
     # Some MicroPython versions/ports/forks provide a different message after
     # a Soft Reset, check if we are in raw REPL, if not send a CTRL-A again
     data = serial.read_until(raw_repl_msg)
     if not data.endswith(raw_repl_msg):
-        serial.write(b"\r\x01")
+        serial.write(b"\r")
+        serial.write(ENTER_RAW_MODE)
         flush_to_msg(serial, raw_repl_msg)
     flush(serial)
 
@@ -105,7 +117,7 @@ def raw_off(serial):
     """
     Takes the device out of raw mode.
     """
-    serial.write(b"\x02")  # Send CTRL-B to get out of raw mode.
+    serial.write(EXIT_RAW_MODE)  # Send CTRL-B to get out of raw mode.
 
 
 def get_serial():
@@ -144,7 +156,7 @@ def execute(commands, serial=None):
         for i in range(0, len(command_bytes), 32):
             serial.write(command_bytes[i:min(i + 32, len(command_bytes))])
             time.sleep(0.01)
-        serial.write(b"\x04")
+        serial.write(SOFT_REBOOT)
         response = serial.read_until(b"\x04>")  # Read until prompt.
         out, err = response[2:-2].split(b"\x04", 1)  # Split stdout, stderr
         result += out
