@@ -102,14 +102,15 @@ def raw_on(serial):
     # a Soft Reset, check if we are in raw REPL, if not send a CTRL-A again
     data = serial.read_until(raw_repl_msg)
     if not data.endswith(raw_repl_msg):
-        # 2 x keyboard interrupt to stop any boot scripts
-        serial.write(KEYBOARD_INTERRUPT)
-        time.sleep(0.01)
-        serial.write(KEYBOARD_INTERRUPT)
-        time.sleep(0.01)
+        # 3 x keyboard interrupt to stop any boot scripts
+        for i in range(3):
+            serial.write(KEYBOARD_INTERRUPT)
+            time.sleep(0.03)
+        flush(serial)
         # Send CTRL-A
         serial.write(b"\r")
         serial.write(ENTER_RAW_MODE)
+        time.sleep(0.03)
         flush_to_msg(serial, raw_repl_msg)
     flush(serial)
 
