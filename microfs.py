@@ -98,15 +98,16 @@ def raw_on(serial):
     # Soft Reset with CTRL-D
     serial.write(SOFT_REBOOT)
     flush_to_msg(serial, b"soft reboot\r\n")
-    # 2 x keyboard interrupt to stop any boot scripts
-    serial.write(KEYBOARD_INTERRUPT)
-    time.sleep(0.01)
-    serial.write(KEYBOARD_INTERRUPT)
-    time.sleep(0.01)
     # Some MicroPython versions/ports/forks provide a different message after
     # a Soft Reset, check if we are in raw REPL, if not send a CTRL-A again
     data = serial.read_until(raw_repl_msg)
     if not data.endswith(raw_repl_msg):
+        # 2 x keyboard interrupt to stop any boot scripts
+        serial.write(KEYBOARD_INTERRUPT)
+        time.sleep(0.01)
+        serial.write(KEYBOARD_INTERRUPT)
+        time.sleep(0.01)
+        # Send CTRL-A
         serial.write(b"\r")
         serial.write(ENTER_RAW_MODE)
         flush_to_msg(serial, raw_repl_msg)
